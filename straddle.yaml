@@ -16,9 +16,8 @@
 # its own SPI bus, and an ALWAYS-IN-PATH RF front end — a 35 dBm-P1dB TX PA
 # plus an 18.5 dB RX LNA — with NO firmware control pins (declared, not
 # detected: see the FEM lines in the kconfig group below). The 1.3" SH1107
-# OLED stays dark until spangap/tinylcd grows SH1107 support (see the
-# commented-out additional_installs). No battery, no SD card, no Vext-style
-# firmware-gated rail.
+# OLED is driven by spangap/tinylcd (staged below; ships in this bundle,
+# clean-room). No battery, no SD card, no Vext-style firmware-gated rail.
 schema_version: 1
 name: spangap/hw-station-g2
 prefix: stationg2
@@ -39,20 +38,15 @@ services:
   - { class: StationG2Board, header: stationg2.h }
   - { class: GpsService,     header: gps.h }
 # The board's screen is a 1.3" SH1107 mono OLED — exactly the class of panel
-# tinylcd's paged status UI exists for, and this board would stage it here the
-# way the Heltec V4 / T3-S3 stage theirs. Deliberately COMMENTED OUT for now,
-# two blockers:
-#   1. github.com/spangap/tinylcd is not published yet — a live entry here
-#      would make every `spangap build --with` of this board try to clone it
-#      and fail the build.
-#   2. tinylcd's controller support today is SSD1306-default, and the SH1107
-#      is NOT an SSD1306 (different controller and addressing) — it needs a
-#      controller-select knob that must exist tinylcd-side before pins help.
-# Uncomment when both land; the when:-gated TINYLCD pin group below is already
-# in place and harmless until then. (Same commented-out-with-reasons pattern
-# reticulous/straddle.yaml uses for rlpg.)
-# additional_installs:
-#   - spangap/tinylcd
+# tinylcd's paged status UI exists for, staged here the way the Heltec V4 /
+# T3-S3 stage theirs. tinylcd ships IN THIS BUNDLE as a clean-room straddle
+# (github.com/spangap/tinylcd was never published — the upstream boards'
+# straddles consume it, but its repo never landed): the workspace checkout
+# satisfies this entry, nothing is cloned. Its SH1107 support is the
+# controller-select knob this board waited for — CONFIG_TINYLCD_SH1107=y in
+# the kconfig group below.
+additional_installs:
+  - spangap/tinylcd
 # Board VALUES, fed to the symbols other straddles / IDF DEFINE through the
 # collected staging/sdkconfig.spangap-fragments. A board straddle is non-
 # buildable, so its sdkconfig.defaults would be IGNORED — everything that
@@ -135,26 +129,30 @@ kconfig:
       - CONFIG_LORA0_FEM_MAX_CHIP_DBM=16
       - CONFIG_LORA_TX_POWER_MAX=35
   # 1.3" SH1107 128x64 OLED on I2C (SDA 5 / SCL 6 — the bus also feeds the
-  # GROVE I2C and QWIIC sockets), addresses 0x3C/0x3D. No OLED reset line on
-  # the G2 — the T3-S3 shows omitting TINYLCD_RST_PIN is fine. The page button
-  # is the program button (GPIO 38), which needs the INTERNAL pullup (no
-  # external pull on this board) — the board's onStart arms the pull in case
-  # tinylcd doesn't. SH1107 controller select is still pending tinylcd-side
-  # support (see the commented-out additional_installs above). Gated: without
-  # tinylcd staged these symbols don't exist — harmless while tinylcd is not
-  # staged, ready for the day it is.
+  # GROVE I2C and QWIIC sockets), addresses 0x3C/0x3D (0x3C = tinylcd's
+  # default, so no ADDR line here). No OLED reset line on the G2 — the T3-S3
+  # shows omitting TINYLCD_RST_PIN is fine. The page button is the program
+  # button (GPIO 38), which needs the INTERNAL pullup (no external pull on
+  # this board) — tinylcd arms it, and the board's onStart arms it too, in
+  # case tinylcd isn't staged. The SH1107 is a DIFFERENT controller from the
+  # SSD1306 default (portrait-native 64x128 RAM): tinylcd drives it via
+  # u8g2's 64x128 setup rotated R1 into the usual 128x64 landscape — the
+  # board just declares the part. Gated: without tinylcd staged these
+  # symbols don't exist and would warn as unknown.
   - when: spangap/tinylcd
     set:
       - CONFIG_TINYLCD_SDA_PIN=5
       - CONFIG_TINYLCD_SCL_PIN=6
       - CONFIG_TINYLCD_BUTTON_PIN=38
+      # 1.3" SH1107 128x64, portrait-native, driven via the 64x128 setup
+      # rotated R1 (flip = R3) — see tinylcd's INTERNALS.
+      - CONFIG_TINYLCD_SH1107=y
 # Declarative settings: the board's rows on the System page. What this board
 # offers is device-wide, not a program, so it lands on System rather than in a
 # menu of its own; order 10 puts Hardware at the top, ahead of the unordered
 # blocks the platform straddles contribute there, and order 30 keeps GPS below
-# where a screen board's Display section (order 20) would sit — nothing at 20
-# here until tinylcd lands. gps.* rows are defaultless: those defaults are
-# owned by gps.cpp; this block only surfaces the keys.
+# tinylcd's Display section (order 20). gps.* rows are defaultless: those
+# defaults are owned by gps.cpp; this block only surfaces the keys.
 settings:
   - at: [ { id: system } ]
     order: 10

@@ -19,11 +19,12 @@ The mesh stack, the IP/web platform, `app_main`, the partition layout, the
 update story and the browser SPA all come from the buildable and its other
 straddles — not from here.
 
-Wired: **LoRa (with the fixed FEM declaration)** and the **optional GROVE
-GNSS module** (off by default). The 1.3" SH1107 OLED is *pending* —
-[tinylcd](../tinylcd) is not published yet and lacks SH1107 controller
-support, so its staging is commented out in `straddle.yaml` (the pin group is
-already in place). The console is the platform's native-USB default
+Wired: **LoRa (with the fixed FEM declaration)**, the **optional GROVE GNSS
+module** (off by default), and the 1.3" SH1107 OLED via
+[tinylcd](../tinylcd)'s paged status UI (staged in `straddle.yaml`; tinylcd
+ships in this bundle as a clean-room straddle with the SH1107 controller
+select this board needed — the panel itself is **untested until flashed**,
+see the checklist below). The console is the platform's native-USB default
 (USB-Serial-JTAG, VID 0x303A / PID 0x1001). No battery and no battery ADC, no
 SD card, no firmware-gated power rail.
 
@@ -59,7 +60,10 @@ Still open (needs equipment / peers / a fitted module):
 - **Two-node RX/TX**: receive real frames from a second RNS-over-LoRa node
   (same freq/SF/BW/sync 0x42).
 - **GPS autobaud** on a fitted GROVE module, at 38400 and at 9600.
-- **Program button** GPIO 38 read (exercised only once tinylcd stages it).
+- **The SH1107 panel under tinylcd** — the OLED ACKed during `detect_hw` on
+  first power-on, but no frame has been drawn through the staged tinylcd
+  yet: the 64×128-rotated setup, the page cycling and the program-button
+  gestures (GPIO 38) are all untested until this image is flashed.
 
 First-run note for headless boards: **rnsd blocks until the admin password is
 set** (`passwd` on the console, or the browser flasher) — a factory-fresh G2
@@ -189,16 +193,21 @@ publish to `gps.*`; valid GPS time disciplines the system clock and parks ntp
 (`sys.time.ext`). The G2 carries **no RTC**, so with no GPS time for an hour
 the clock is handed back to ntp.
 
-## OLED (pending tinylcd)
+## OLED (tinylcd)
 
 The 1.3" **SH1107** 128×64 OLED (0x3C/0x3D) sits on the I2C bus (SDA 5 /
-SCL 6) that also feeds the GROVE I2C and SparkFun QWIIC sockets. It is the
-right panel for [tinylcd](../tinylcd)'s paged status UI, but tinylcd is not
-published yet and its controller support is SSD1306-default — the SH1107 is a
-**different controller**, not a drop-in. The staging is commented out in
-`straddle.yaml` with the reasons; the `when: spangap/tinylcd` pin group
-(SDA 5 / SCL 6 / button 38) is already in place for the day both land. Until
-then the panel stays dark and the build is headless.
+SCL 6) that also feeds the GROVE I2C and SparkFun QWIIC sockets. It is driven
+by [tinylcd](../tinylcd)'s paged status UI, staged in `straddle.yaml`:
+tinylcd ships in this bundle (clean-room — the upstream repo was never
+published) and carries the controller select the SH1107 needed
+(`CONFIG_TINYLCD_SH1107=y`; portrait-native 64×128, driven through u8g2's
+rotated setup — the board just declares the part). The page button is the
+program button (GPIO 38): click = next page, double click = the page's own
+(the net page toggles WiFi), 500 ms hold = screen off, any press wakes.
+Pages on this build: network (SSID / `hostname.local` / IPs), LoRa (state /
+peers / RSSI), LXMF unread. **The panel is untested until this image is
+flashed** — the SH1107 has only ever ACKed the detect probe on real
+hardware.
 
 ## Board identity (`detect_hw`)
 
@@ -274,8 +283,8 @@ TX-power section, and the `kconfig:` comments for the full rationale).
 
 | Signal | GPIO | Notes |
 |---|---|---|
-| OLED SDA / SCL | 5 / 6 | 1.3" **SH1107** 128×64 at 0x3C/0x3D — *not* an SSD1306; bus shared with GROVE I2C + QWIIC |
-| page button | 38 | the program button, once tinylcd stages |
+| OLED SDA / SCL | 5 / 6 | 1.3" **SH1107** 128×64 at 0x3C/0x3D — *not* an SSD1306 (`CONFIG_TINYLCD_SH1107=y`); bus shared with GROVE I2C + QWIIC |
+| page button | 38 | the program button, read by tinylcd (no reset line — `TINYLCD_RST_PIN` deliberately unset) |
 
 ### Memory / flash (published from `kconfig:`)
 
@@ -345,9 +354,9 @@ with the `build/flasher.zip` the build emits (an esptool argfile + binaries —
 - [iface-lora](../iface-lora) — owns the SX1262 radio engine and the FEM
   conversion; this board parks its CS and supplies its pins/declaration via
   Kconfig. **Branch `station-g2-fem` until upstreamed.**
-- [tinylcd](../tinylcd) — *not yet staged* (commented out in
-  `straddle.yaml`); will own the SH1107 paged UI and the page button once
-  published with SH1107 support.
+- [tinylcd](../tinylcd) — the SH1107 paged status UI and the page button
+  (staged via `additional_installs`; ships in this bundle, clean-room —
+  the upstream repo was never published).
 
 ## Read next
 

@@ -45,8 +45,9 @@ The board also injects its hardware description as `kconfig:` values in
 - **LoRa SX1262 + fixed FEM** (consumed by [iface-lora](../iface-lora),
   gated `when: reticulous/iface-lora`) — SCK 12 / MOSI 13 / MISO 14, CS 11,
   DIO1 48, BUSY 47, RST 21, TCXO 1800 mV, DIO2 switch, plus the FEM trio (§3).
-- **tinylcd pins** (gated `when: spangap/tinylcd`, currently never staged —
-  §6) — SDA 5 / SCL 6 / button 38.
+- **tinylcd pins + controller** (gated `when: spangap/tinylcd`, staged via
+  `additional_installs` — §6) — SDA 5 / SCL 6 / button 38 /
+  `CONFIG_TINYLCD_SH1107=y`.
 
 There is no `sdkconfig.defaults` here on purpose: a non-buildable straddle's
 `sdkconfig.defaults` is ignored under `--with`, so every value that must
@@ -204,25 +205,37 @@ the yaml rows are deliberately defaultless.
   `CONFIG_LORA0_*` symbols only exist when iface-lora is staged, and the
   probe must work in a radio-less image.
 
-## 6. Why tinylcd is commented out
+## 6. Why tinylcd is in-bundle clean-room
 
-Two independent blockers, both stated at the commented-out
-`additional_installs` in `straddle.yaml`:
+The staging used to be commented out behind two blockers; both fell at once,
+in this bundle:
 
-1. **github.com/spangap/tinylcd is not published.** `additional_installs`
-   entries are cloned at build time; a live entry fails every build of this
-   board until the repo exists.
-2. **The SH1107 is not an SSD1306.** tinylcd's controller support today is
-   SSD1306-default; the SH1107 differs in controller and addressing (page
-   layout, 128×128-native RAM window on a 128×64 panel), so it needs a
-   controller-select knob tinylcd-side before pin values mean anything.
+1. **github.com/spangap/tinylcd was never published.** The upstream boards'
+   straddles (Heltec V4, T3-S3) consume tinylcd — their
+   `conditional/tinylcd/` slices and kconfig groups are the surviving
+   record of its API — but the repo itself never landed, so a live
+   `additional_installs` entry used to fail every build on the clone. The
+   bundle's answer is a **clean-room reimplementation** (sibling
+   `tinylcd/`), written against exactly that record: the three consumer
+   slices (spangap-net / iface-lora / lxmf) as the binding API contract,
+   the boards' README/kconfig comments as the UX + board contract. A
+   workspace checkout satisfies the install entry; nothing is cloned.
+2. **The SH1107 is not an SSD1306.** The clean-room tinylcd carries the
+   controller-select knob this board waited for
+   (`CONFIG_TINYLCD_SSD1306/SH1106/SH1107` choice); the SH1107's
+   portrait-native RAM (64×128 window) is handled tinylcd-side via u8g2's
+   64×128 setup rotated a quarter turn (R1; flip = R3) — the board only
+   declares the part.
 
-The `when: spangap/tinylcd` kconfig group (SDA 5 / SCL 6 / BUTTON 38) is
-already committed and inert — gated groups apply only when the straddle is
-staged, so it costs nothing now and works the day both blockers fall. Note
-the group carries no `TINYLCD_RST_PIN` (the G2 has no OLED reset line — the
-T3-S3 shows omitting it is fine) and that the board's `onStart` arms the
-button pull regardless, in case tinylcd doesn't.
+The `when: spangap/tinylcd` kconfig group now carries SDA 5 / SCL 6 /
+BUTTON 38 / `CONFIG_TINYLCD_SH1107=y`. It still carries no
+`TINYLCD_RST_PIN` (the G2 has no OLED reset line — omitting the symbol is
+tinylcd's documented -1 default), and the board's `onStart` still arms the
+button pull regardless — tinylcd arms the same internal pullup itself, and
+both doing it is deliberate (each covers the build the other is absent
+from). Keep the panel's untested-until-flashed warning in the README until
+a frame has actually been drawn on hardware: the SH1107 has only ever ACKed
+the detect probe.
 
 ## 7. Pitfalls
 

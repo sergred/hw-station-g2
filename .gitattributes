@@ -1,0 +1,5 @@
+# Everything ships LF, everywhere. The straddle is consumed inside a Linux
+# build container and .githooks/prepare-commit-msg is a shell script — a
+# core.autocrlf=true checkout on Windows would CRLF it and break it (the
+# spangap repo itself has this failure mode; don't inherit it).
+* text=auto eol=lf

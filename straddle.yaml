@@ -148,10 +148,6 @@ kconfig:
       # the portrait-rotated guess wrong); driven by tinylcd's own G2-class
       # variant: SH1106-style addressing at column offset 0.
       - CONFIG_TINYLCD_SH1107=y
-      # One composed dashboard, no page carousel: a mains-powered base
-      # station is glanced at, not browsed. "dash" is iface-lora's radio
-      # dashboard (reachability, radio, air/duty/noise, traffic chart).
-      - CONFIG_TINYLCD_SOLO_PAGE="dash"
 # Declarative settings: the board's rows on the System page. What this board
 # offers is device-wide, not a program, so it lands on System rather than in a
 # menu of its own; order 10 puts Hardware at the top, ahead of the unordered

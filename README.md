@@ -27,25 +27,45 @@ already in place). The console is the platform's native-USB default
 (USB-Serial-JTAG, VID 0x303A / PID 0x1001). No battery and no battery ADC, no
 SD card, no firmware-gated power rail.
 
-## ⚠️ Hardware verification — nothing has run on a real G2 yet
+## Hardware verification — first power-on done (2026-08-20)
 
 This straddle was assembled from Meshtastic's `station-g2` variant files, the
-B&Q wiki and its PA conduction-test table — **not** from a board in hand.
-First power-on must confirm, in roughly this order:
+B&Q wiki and its PA conduction-test table, then verified on a physical
+Station G2 (ESP32-S3 QFN56 rev v0.2, 16 MB quad flash, 8 MB embedded PSRAM,
+plain-USB power, esptool flash over the native USB-Serial-JTAG at COM level):
 
-- **`detect_hw` anchor**: the SH1107 ACKs at 0x3C/0x3D on SDA 5 / SCL 6 with
-  **no rail drive and no reset pulse** (the G2 routes no OLED reset; the probe
-  assumes a bare ACK works, as it does on the T3-S3 — see the comment in
-  `esp-idf/src/detect.cpp` for what to try if it doesn't).
-- **SX1262 `begin()`** with the DIO3-supplied 1.8 V TCXO
-  (`CONFIG_LORA0_TCXO_MV=1800`) — a wrong TCXO setting reads as a dead radio.
-- **DIO2 actually switching** the front end between RX and TX (if not, RX
-  sensitivity collapses and TX never reaches the antenna).
-- **PA output vs the mapping table below on a power meter**, on both rails:
-  plain USB (PA unpowered) and USB-PD/DC (PA live).
+- ✅ **`detect_hw`**: `detect: hw_station_g2 found` on first boot — the SH1107
+  ACKs at 0x3C/0x3D on SDA 5 / SCL 6 with **no rail drive and no reset
+  pulse**, and `detect_radio_is` confirms the SX1262 on the LoRa header.
+- ✅ **SX1262 `begin()`** with the DIO3-supplied 1.8 V TCXO:
+  `lora/0: SX1262 found (cs=11 irq=48 busy=47 rst=21)`, radio `up` at
+  869.525 MHz / BW 125 / SF7 / CR4:5.
+- ✅ **FEM declaration end to end**: `txp 14` accepted as antenna dBm (chip
+  drive −6 via the fixed +20 dB conversion), `lora.0.tx_power_max` published
+  as 35, announces transmitted (`tx 3/501 B`, airtime ledger counting).
+- ✅ **RX path alive**: CSMA noise floor measured (−92 dBm on ch0, busy
+  threshold −86) through the always-on LNA.
+- ✅ **Partition/state floor**: `/state` mounted as 10 240 kB at 0x600000,
+  first-boot factory copy OK.
+- ✅ **GPS-absent path**: task up, `state: off`, no probe churn (module not
+  fitted, `s.gps.enable=0` default).
+- ✅ **rnsd integration**: `register: iface=lora/0 mtu=500 bitrate=4000`,
+  `rns.ready: 1`, hosted announce replayed onto the radio.
+
+Still open (needs equipment / peers / a fitted module):
+
+- **PA output vs the mapping table on a power meter**, on both rails: plain
+  USB (PA unpowered — today's setup) and USB-PD/DC (PA live).
+- **Two-node RX/TX**: receive real frames from a second RNS-over-LoRa node
+  (same freq/SF/BW/sync 0x42).
 - **GPS autobaud** on a fitted GROVE module, at 38400 and at 9600.
-- **Program button**: GPIO 38 reads 1 idle / 0 pressed with only the internal
-  pullup armed by `onStart`.
+- **Program button** GPIO 38 read (exercised only once tinylcd stages it).
+
+First-run note for headless boards: **rnsd blocks until the admin password is
+set** (`passwd` on the console, or the browser flasher) — a factory-fresh G2
+sits with `rnsd.up: 0` and the interfaces retrying `rnsd register failed`
+until then. Set the clock too (`date`, NTP or GPS) or announces ride a ~1970
+epoch until the bounded time-wait passes.
 
 ## What it does, and how it fits
 

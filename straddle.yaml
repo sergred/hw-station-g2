@@ -47,6 +47,10 @@ services:
 # the kconfig group below.
 additional_installs:
   - spangap/tinylcd
+  # The SX1262 is soldered to this board, so the board is what stages the LoRa
+  # interface, as upstream's boards now do (hw-heltecv4): a buildable stays
+  # radio-agnostic. Gated on rns, because it is a Reticulum interface.
+  - { install: reticulous/iface-lora, when: reticulous/rns }
 # Board VALUES, fed to the symbols other straddles / IDF DEFINE through the
 # collected staging/sdkconfig.spangap-fragments. A board straddle is non-
 # buildable, so its sdkconfig.defaults would be IGNORED — everything that

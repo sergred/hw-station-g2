@@ -95,24 +95,24 @@ kconfig:
       # FEM between the SX1262 and the antenna: a 35 dBm-P1dB TX PA (on its
       # own 7.5 V rail) + an 18.5 dB ultra-low-NF RX LNA + an RF switch driven
       # by the SX1262's own DIO2. NO control pins and NO detect pins reach the
-      # MCU — the Heltec-style FEM_EN/TXSEL/detect dance has nothing to talk
-      # to — so the board states the FEM as fact through iface-lora's
-      # fixed-FEM support (sibling patch, iface-lora branch station-g2-fem;
-      # until it is upstreamed, MAINLINE iface-lora warns the two FEM_FIXED
-      # symbols below as unknown and converts nothing — do not trust
-      # high-power settings on mainline). The numbers come from B&Q's PA
-      # conduction test (chip dBm → antenna dBm, US915/EU868):
-      #   * FEM_FIXED_GAIN_DB=20 — the measured EU-mid-table gain, chosen so a
+      # MCU, so the board states the FEM as fact, in mainline iface-lora's own
+      # model of a declared front end (lora_fem.h, FEM_DECLARED): its gain and
+      # its antenna ceiling are the whole of it. This replaces the sibling
+      # patch's FEM_FIXED_GAIN_DB / FEM_MAX_CHIP_DBM (iface-lora branch
+      # station-g2-fem), which mainline does not know: it would ignore them
+      # and drive the chip as if no PA were there, 20 dB too loud.
+      # The numbers come from B&Q's PA conduction test (chip dBm → antenna
+      # dBm, US915/EU868):
+      #   * FEM_GAIN_DB=20 — the measured EU-mid-table gain, chosen so a
       #     requested "35 at the antenna" maps to chip 15 = the EU-band P1dB
       #     point and B&Q's recommended EU setting (chip 15 → 35.0 EU /
       #     34.5 US at the antenna).
-      #   * FEM_MAX_CHIP_DBM=16 — the US-band P1dB. femChipDbm's walk never
-      #     drives the chip past this, even if a build overrides the gain, so
-      #     the PA stays inside its linear region. (Meshtastic caps the chip
-      #     at SX126X_MAX_POWER 19 = the absolute-max row, already
-      #     compressing; we stop 3 dB earlier on purpose.)
       #   * LORA_TX_POWER_MAX=35 — the ceiling at the antenna = P1dB, NOT the
-      #     37 dBm saturation figure the conduction table tops out at.
+      #     37 dBm saturation figure the conduction table tops out at. With the
+      #     gain it caps the chip too: never more than 35 - 20 = 15 dBm, a dB
+      #     under the US-band P1dB of 16 the old FEM_MAX_CHIP_DBM stated, so
+      #     the PA stays inside its linear region. (Meshtastic caps the chip at
+      #     SX126X_MAX_POWER 19 = the absolute-max row, already compressing.)
       # POWER truth: the PA's 7.5 V rail is only live on USB-PD 15 V or
       # 9-19 V DC input (LEDs: LV red = 3.3 V logic, HV green = 7.5 V rail,
       # PA blue = amplifying). On plain USB the PA is unpowered and the node
@@ -125,8 +125,7 @@ kconfig:
       # is the operator's to set. Per platform philosophy s.lora.0.tx_power
       # ships with NO default — the user must choose, and the radio refuses
       # to start until it is set.
-      - CONFIG_LORA0_FEM_FIXED_GAIN_DB=20
-      - CONFIG_LORA0_FEM_MAX_CHIP_DBM=16
+      - CONFIG_LORA0_FEM_GAIN_DB=20
       - CONFIG_LORA_TX_POWER_MAX=35
   # 1.3" SH1107 128x64 OLED on I2C (SDA 5 / SCL 6 — the bus also feeds the
   # GROVE I2C and QWIIC sockets), addresses 0x3C/0x3D (0x3C = tinylcd's

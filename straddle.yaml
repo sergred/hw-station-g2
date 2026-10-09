@@ -131,6 +131,11 @@ kconfig:
       # to start until it is set.
       - CONFIG_LORA0_FEM_GAIN_DB=20
       - CONFIG_LORA_TX_POWER_MAX=35
+      # RECEIVE truth: the 18.5 dB LNA sits in front of the SX1262 with no
+      # control pin, so no driver can detect it. Declared here, signal
+      # readings refer to the antenna connector (whole dB; SNR is a ratio
+      # and stays as read).
+      - CONFIG_LORA0_RSSI_CAL=18
   # 1.3" SH1107 128x64 OLED on I2C (SDA 5 / SCL 6 — the bus also feeds the
   # GROVE I2C and QWIIC sockets), addresses 0x3C/0x3D (0x3C = tinylcd's
   # default, so no ADDR line here). No OLED reset line on the G2 — the T3-S3
